@@ -1,54 +1,97 @@
-import numpy as np
-import vpython as vp
+class Grid:
+    def __init__(self, width, height):
+        # Initialize the grid with the specified width and height
+        self.width = width
+        self.height = height
+        # Create a 2D list to store particles, initially filled with None
+        self.cells = [[None for _ in range(width)] for _ in range(height)]
 
-def count_neighbors(cell, grid):
-    x, y, z = cell
-    count = 0
-    for i in range(-1, 2):
-        for j in range(-1, 2):
-            for k in range(-1, 2):
-                if i == 0 and j == 0 and k == 0:
-                    continue
-                count += grid[(x + i) % len(grid), (y + j) % len(grid[0]), (z + k) % len(grid[0][0])]
-    return count
+    def update(self):
+        # Update the grid by moving each particle
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.cells[y][x] is not None:
+                    # Move each particle if it exists
+                    self.cells[y][x].move(self)
 
-def game_of_life_3d(grid):
-    new_grid = np.copy(grid)
-    for x in range(len(grid)):
-        for y in range(len(grid[0])):
-            for z in range(len(grid[0][0])):
-                live_neighbors = count_neighbors((x, y, z), grid)
-                if grid[x, y, z] == 1:
-                    if live_neighbors < 2 or live_neighbors > 3:
-                        new_grid[x, y, z] = 0
-                else:
-                    if live_neighbors == 3:
-                        new_grid[x, y, z] = 1
-    return new_grid
+    def display(self):
+        # Display the grid
+        for row in self.cells:
+            # Print '.' for empty cells, or the particle type for occupied cells
+            print(''.join(['.' if cell is None else cell.type for cell in row]))
 
-def visualize(grid):
-    vp.scene = vp.canvas(title="3D Game of Life", width=800, height=600)
-    vp.rate(30)
-    boxes = {}
-    for x in range(len(grid)):
-        for y in range(len(grid[0])):
-            for z in range(len(grid[0][0])):
-                if grid[x, y, z] == 1:
-                    boxes[(x, y, z)] = vp.box(pos=vp.vector(x, y, z), size=vp.vector(0.9, 0.9, 0.9), color=vp.color.red)
-    while True:
-        grid = game_of_life_3d(grid)
-        for x in range(len(grid)):
-            for y in range(len(grid[0])):
-                for z in range(len(grid[0][0])):
-                    if grid[x, y, z] == 1 and (x, y, z) not in boxes:
-                        boxes[(x, y, z)] = vp.box(pos=vp.vector(x, y, z), size=vp.vector(0.9, 0.9, 0.9), color=vp.color.red)
-                    elif grid[x, y, z] == 0 and (x, y, z) in boxes:
-                        boxes[(x, y, z)].visible = False
-                        del boxes[(x, y, z)]
-        vp.rate(30)
+class Particle:
+    def __init__(self, x, y, particle_type):
+        # Initialize a particle with position (x, y) and a type
+        self.x = x
+        self.y = y
+        self.type = particle_type
 
-# Initialize grid
-grid = np.random.randint(0, 2, size=(10, 10, 10))
+    def move(self, grid):
+        # Define the move method to be overridden by subclasses
+        pass
 
-# Run game of life
-visualize(grid)
+    def interact(self, grid):
+        # Define the interact method to be overridden by subclasses
+        pass
+
+
+class Sand(Particle):
+    def __init__(self, x, y):
+        # Initialize a sand particle with type 'S'
+        super().__init__(x, y, 'S')
+
+    def move(self, grid):
+        # Move the sand particle down if the space below is empty
+        if self.y + 1 < grid.height and grid.cells[self.y + 1][self.x] is None:
+            # Move the particle down by updating the grid
+            grid.cells[self.y][self.x] = None
+            self.y += 1
+            grid.cells[self.y][self.x] = self
+
+
+class Water(Particle):
+    def __init__(self, x, y):
+        # Initialize a water particle with type 'W'
+        super().__init__(x, y, 'W')
+
+    def move(self, grid):
+        # Move the water particle down, or to the sides if blocked
+        if self.y + 1 < grid.height and grid.cells[self.y + 1][self.x] is None:
+            # Move down
+            grid.cells[self.y][self.x] = None
+            self.y += 1
+            grid.cells[self.y][self.x] = self
+        elif self.x + 1 < grid.width and grid.cells[self.y][self.x + 1] is None:
+            # Move right
+            grid.cells[self.y][self.x] = None
+            self.x += 1
+            grid.cells[self.y][self.x] = self
+        elif self.x - 1 >= 0 and grid.cells[self.y][self.x - 1] is None:
+            # Move left
+            grid.cells[self.y][self.x] = None
+            self.x -= 1
+            grid.cells[self.y][self.x] = self
+
+
+def main():
+    # Create a grid of size 10x10
+    grid = Grid(10, 10)
+    
+    # Create sand and water particles
+    sand1 = Sand(5, 0)
+    water1 = Water(3, 0)
+    
+    # Place the particles in the grid
+    grid.cells[sand1.y][sand1.x] = sand1
+    grid.cells[water1.y][water1.x] = water1
+    
+    # Run the simulation for 10 steps
+    for _ in range(10):
+        # Update and display the grid
+        grid.update()
+        grid.display()
+        print()  # Print a newline for better readability between steps
+
+if __name__ == "__main__":
+    main()
